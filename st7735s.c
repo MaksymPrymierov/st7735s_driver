@@ -56,6 +56,7 @@ MODULE_DESCRIPTION("Driver for st7735 display");
 
 #define DELAY 0x80
 
+static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
 
 static const u8 init_cmds1[] = { 
@@ -175,6 +176,77 @@ static void st7735s_execute_command_list(const u8 *addr)
     }
 }
 
+static void st7735s_set_address_window(u8 x0, u8 y0, u8 x1, u8 y1)
+{
+    u8 data[] = {0x00, x0 + ST7735S_XSTART, 0x00, x1 + ST7735S_XSTART};
+
+    st7735s_write_command(ST7735S_CASET);
+    st7735s_write_data(data, sizeof(data));
+
+    // row address set
+    st7735s_write_command(ST7735S_RASET);
+    data[1] = y0 + ST7735S_YSTART;
+    data[3] = y1 + ST7735S_YSTART;
+    st7735s_write_data(data, sizeof(data));
+
+    // write to RAM
+    st7735s_write_command(ST7735S_RAMWR);
+}
+
+inline void st7735s_update_screen(void)
+{
+        st7735s_write_data((u8*)frame_buffer, sizeof(u16) * ST7735S_WIDTH * ST7735S_HEIGHT);
+}
+
+void st7735s_draw_pixel(u16 x, u16 y, u16 color)
+{
+        u8 data[] = {color >> 8, color & 0xFF};
+
+        if ((x >= ST7735S_WIDTH) || (y >= ST7735S_HEIGHT)) {
+                goto out;
+        }
+
+        st7735s_set_address_window(x, y, x+1, y+1);
+        st7735s_write_data(data, sizeof(data));
+
+        out:
+                return;
+}
+
+void st7735s_fill_rectangle(u16 x, u16 y, u16 w, u16 h, u16 color)
+{
+        u16 i;
+        u16 j;
+
+        if ((x >= ST7735S_WIDTH) || (y >= ST7735S_HEIGHT)) {
+                goto out;
+        }
+
+        if ((x + w - 1) > ST7735S_WIDTH) {
+                w = ST7735S_WIDTH - x;
+        }
+
+        if ((y + h - 1) > ST7735S_HEIGHT) {
+                h = ST7735S_HEIGHT - y;
+        }
+
+        for (j = 0; j < h; ++j) {
+                for (i = 0; i < w; ++i) {
+                        frame_buffer[(x + ST7735S_WIDTH * y) + (i + ST7735S_WIDTH * j)] = color;
+                }
+        }
+
+        st7735s_update_screen();
+
+out:
+        return;
+}
+
+void st7735s_fill_screen(u16 color)
+{
+        st7735s_fill_rectangle(0, 0, ST7735S_WIDTH, ST7735S_HEIGHT, color);
+}
+
 static void __exit st7735s_exit(void)
 {
         gpio_free(ST7735S_PIN_DC);
@@ -236,6 +308,21 @@ static int __init st7735s_init(void)
         st7735s_execute_command_list(init_cmds2);
         st7735s_execute_command_list(init_cmds3);
         pr_info("st7735s: device init completed\n");
+
+        memset(frame_buffer, 0xFFFF, sizeof(frame_buffer));
+
+        st7735s_set_address_window(0, 0, ST7735S_WIDTH - 1, ST7735S_HEIGHT - 1);
+
+        /* //Examples 
+
+        st7735s_fill_screen(0x0000);
+
+        st7735s_fill_rectangle(20, 130, 50, 20, 0x1111);
+        st7735s_fill_rectangle(20, 55+60, 20, 60, 0x2222);
+        st7735s_fill_rectangle(20+40, 55+60, 20, 60, 0x3333);
+        st7735s_fill_rectangle(79, 80, 50, 60, 0x4444);
+        st7735s_fill_rectangle(0, 0, 50, 60, 0x5555);
+        */
 
         pr_info("st7735s: module loaded\n");
 
