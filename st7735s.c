@@ -65,7 +65,7 @@ static const u8 init_cmds1[] = {
         ST7735S_SWRESET, DELAY, //  1: Software reset, 0 args, w/delay
         150,                    //     150 ms delay
         ST7735S_SLPOUT, DELAY,  //  2: Out of sleep mode, 0 args, w/delay
-        255,                    //     500 ms delay
+        255,                    //     255 ms delay
         ST7735S_FRMCTR1, 3,     //  3: Frame rate ctrl - normal mode, 3 args:
         0x02, 0x2D, 0x2E,       //     Rate = fosc/(0x02+40) * (LINE+2D+2E)
         ST7735S_FRMCTR2, 3,     //  4: Frame rate control - idle mode, 3 args:
@@ -106,7 +106,7 @@ init_cmds2[] = {
         0x00, 0x7F,             //     XEND = 127
         ST7735S_RASET, 4,       //  2: Row addr set, 4 args, no delay:
         0x00, 0x00,             //     XSTART = 0
-        0x00, 0x7F
+        0x00, 0x9F
 },
 
 init_cmds3[] = { 
@@ -313,7 +313,7 @@ static int __init st7735s_init(void)
 
         st7735s_set_address_window(0, 0, ST7735S_WIDTH - 1, ST7735S_HEIGHT - 1);
 
-        /* //Examples 
+        //Examples 
 
         st7735s_fill_screen(0x0000);
 
@@ -322,7 +322,7 @@ static int __init st7735s_init(void)
         st7735s_fill_rectangle(20+40, 55+60, 20, 60, 0x3333);
         st7735s_fill_rectangle(79, 80, 50, 60, 0x4444);
         st7735s_fill_rectangle(0, 0, 50, 60, 0x5555);
-        */
+        
 
         pr_info("st7735s: module loaded\n");
 
