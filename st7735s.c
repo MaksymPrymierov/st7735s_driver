@@ -5,6 +5,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 
+#include <linux/device.h>
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
 MODULE_DESCRIPTION("Driver for st7735 display");
@@ -58,6 +60,12 @@ MODULE_DESCRIPTION("Driver for st7735 display");
 
 static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
+
+struct st7735s_data {
+        u16 color;
+};
+
+static struct st7735s_data st7735s_data;
 
 static const u8 init_cmds1[] = { 
         // Init for st7735s, part 1 (red or green tab)
@@ -200,14 +208,12 @@ inline void st7735s_update_screen(void)
 
 void st7735s_draw_pixel(u16 x, u16 y, u16 color)
 {
-        u8 data[] = {color >> 8, color & 0xFF};
-
         if ((x >= ST7735S_WIDTH) || (y >= ST7735S_HEIGHT)) {
                 goto out;
         }
-
-        st7735s_set_address_window(x, y, x+1, y+1);
-        st7735s_write_data(data, sizeof(data));
+        
+        frame_buffer[x + ST7735S_WIDTH * y] = color;
+        st7735s_update_screen();
 
         out:
                 return;
@@ -247,8 +253,39 @@ void st7735s_fill_screen(u16 color)
         st7735s_fill_rectangle(0, 0, ST7735S_WIDTH, ST7735S_HEIGHT, color);
 }
 
+static ssize_t fill_screen_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
+{
+        u16 color = 0x0000;
+
+        sscanf(buf, "%hx", &color);
+
+        st7735s_fill_screen(color);
+        st7735s_data.color = color;
+
+        return size;
+}
+
+static ssize_t fill_screen_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+        sprintf(buf, "%hx", st7735s_data.color);
+
+        return strlen(buf);
+}
+
+CLASS_ATTR_RW(fill_screen);
+
+static struct class *attr_class;
+
 static void __exit st7735s_exit(void)
 {
+        if (attr_class) {
+		class_remove_file(attr_class, &class_attr_fill_screen);
+		pr_info("st7735s: sysfs class attributes removed\n");
+
+		class_destroy(attr_class);
+		pr_info("st7735s: sysfs class destroyed\n");
+	}
+
         gpio_free(ST7735S_PIN_DC);
 
         if (st7735s_spi_device) {
@@ -323,6 +360,24 @@ static int __init st7735s_init(void)
         st7735s_fill_rectangle(79, 80, 50, 60, 0x4444);
         st7735s_fill_rectangle(0, 0, 50, 60, 0x5555);
         
+
+        attr_class = class_create(THIS_MODULE, "st7735s");
+	if (IS_ERR(attr_class)) {
+		ret = PTR_ERR(attr_class);
+		pr_err("st7735s: failed to create sysfs class: %d\n", ret);
+		goto out;
+	}
+	pr_info("st7735s: sysfs class created\n");
+
+        class_attr_fill_screen.attr.mode = 0666;
+	ret = class_create_file(attr_class, &class_attr_fill_screen);
+	if (ret) {
+		pr_err("st7735s: failed to created sysfs class attribute direction: %d\n", ret);
+		goto out;
+	}
+
+	pr_info("st7735s: sysfs class attributes created\n");
+
 
         pr_info("st7735s: module loaded\n");
 
