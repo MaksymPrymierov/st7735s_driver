@@ -200,14 +200,12 @@ inline void st7735s_update_screen(void)
 
 void st7735s_draw_pixel(u16 x, u16 y, u16 color)
 {
-        u8 data[] = {color >> 8, color & 0xFF};
-
         if ((x >= ST7735S_WIDTH) || (y >= ST7735S_HEIGHT)) {
                 goto out;
         }
-
-        st7735s_set_address_window(x, y, x+1, y+1);
-        st7735s_write_data(data, sizeof(data));
+        
+        frame_buffer[x + ST7735S_WIDTH * y] = color;
+        st7735s_update_screen();
 
         out:
                 return;
