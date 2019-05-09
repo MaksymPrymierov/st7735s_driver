@@ -61,12 +61,6 @@ MODULE_DESCRIPTION("Driver for st7735 display");
 static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
 
-struct st7735s_data {
-        u16 color;
-};
-
-static struct st7735s_data st7735s_data;
-
 static const u8 init_cmds1[] = { 
         // Init for st7735s, part 1 (red or green tab)
         15,                     // 15 commands in list:
@@ -253,13 +247,13 @@ void st7735s_fill_screen(u16 color)
         st7735s_fill_rectangle(0, 0, ST7735S_WIDTH, ST7735S_HEIGHT, color);
 }
 
-static ssize_t draw_rectangle_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t draw_rect_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
 {
         u16 color = 0xf0f0;
-		int x;
-		int y;
-		int w;
-		int h;
+	int x;
+	int y;
+	int w;
+	int h;
 
         sscanf(buf, "%hx %d %d %d %d", &color, &x, &y, &w, &h);
 		st7735s_fill_rectangle(x, y, w, h, color);
@@ -275,29 +269,18 @@ static ssize_t fill_screen_store(struct class *class, struct class_attribute *at
         sscanf(buf, "%hx", &color);
 
         st7735s_fill_screen(color);
-        st7735s_data.color = color;
 
         return size;
 }
 
-static ssize_t fill_screen_show(struct class *class, struct class_attribute *attr, char *buf)
-{
-        sprintf(buf, "%hx", st7735s_data.color);
-
-        return strlen(buf);
-}
-
-CLASS_ATTR_RW(fill_screen);
-
 static struct class *attr_class;
-static struct class_attribute class_attr_draw_rect = __ATTR(draw_rect, 0220, NULL, draw_rectangle_store);
+static struct class_attribute class_attr_draw_rect = __ATTR_WO(draw_rect);
+static struct class_attribute class_attr_fill_screen = __ATTR_WO(fill_screen);
 
 static void __exit st7735s_exit(void)
 {
         if (attr_class) {
 		class_remove_file(attr_class, &class_attr_draw_rect);
-		pr_info("st7735s: sysfs class attributes removed\n");
-		
 		class_remove_file(attr_class, &class_attr_fill_screen);
 		pr_info("st7735s: sysfs class attributes removed\n");
 
@@ -388,13 +371,14 @@ static int __init st7735s_init(void)
 	}
 	pr_info("st7735s: sysfs class created\n");
 
-        class_attr_fill_screen.attr.mode = 0666;
+        class_attr_fill_screen.attr.mode = 0222;
 	ret = class_create_file(attr_class, &class_attr_fill_screen);
 	if (ret) {
 		pr_err("st7735s: failed to created sysfs class attribute direction: %d\n", ret);
 		goto out;
 	}
 	
+        class_attr_draw_rect.attr.mode = 0222;
 	ret = class_create_file(attr_class, &class_attr_draw_rect);
 	if (ret) {
 		printk(KERN_ERR "mpu6050: Failed to create sysfs class attribute accelerometer_x\n");
@@ -402,7 +386,6 @@ static int __init st7735s_init(void)
 	}
 	
 	pr_info("st7735s: sysfs class attributes created\n");
-
 
         pr_info("st7735s: module loaded\n");
 
