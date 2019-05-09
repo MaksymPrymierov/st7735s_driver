@@ -253,6 +253,21 @@ void st7735s_fill_screen(u16 color)
         st7735s_fill_rectangle(0, 0, ST7735S_WIDTH, ST7735S_HEIGHT, color);
 }
 
+static ssize_t draw_rectangle_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
+{
+        u16 color = 0xf0f0;
+		int x;
+		int y;
+		int w;
+		int h;
+
+        sscanf(buf, "%hx %d %d %d %d", &color, &x, &y, &w, &h);
+		st7735s_fill_rectangle(x, y, w, h, color);
+
+
+        return size;
+}
+
 static ssize_t fill_screen_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
 {
         u16 color = 0x0000;
@@ -275,10 +290,14 @@ static ssize_t fill_screen_show(struct class *class, struct class_attribute *att
 CLASS_ATTR_RW(fill_screen);
 
 static struct class *attr_class;
+static struct class_attribute class_attr_draw_rect = __ATTR(draw_rect, 0220, NULL, draw_rectangle_store);
 
 static void __exit st7735s_exit(void)
 {
         if (attr_class) {
+		class_remove_file(attr_class, &class_attr_draw_rect);
+		pr_info("st7735s: sysfs class attributes removed\n");
+		
 		class_remove_file(attr_class, &class_attr_fill_screen);
 		pr_info("st7735s: sysfs class attributes removed\n");
 
@@ -375,7 +394,13 @@ static int __init st7735s_init(void)
 		pr_err("st7735s: failed to created sysfs class attribute direction: %d\n", ret);
 		goto out;
 	}
-
+	
+	ret = class_create_file(attr_class, &class_attr_draw_rect);
+	if (ret) {
+		printk(KERN_ERR "mpu6050: Failed to create sysfs class attribute accelerometer_x\n");
+		return ret;
+	}
+	
 	pr_info("st7735s: sysfs class attributes created\n");
 
 
