@@ -9,6 +9,7 @@
 
 #include "st7735s_sysfs.c"
 #include "st7735s_cdev.c"
+#include "st7735s_types.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
@@ -282,9 +283,10 @@ static int __init st7735s_init(void)
                 .mode = SPI_MODE_0,
         };
 
-        struct device_functions st7735s_functions = {
+        struct st7735s_device_functions st7735s_functions = {
                 .draw_rect = st7735s_fill_rectangle,
                 .fill_screen = st7735s_fill_screen,
+                .update_screen = st7735s_update_screen,
         };
         
         master = spi_busnum_to_master(st7735s_info.bus_num);
@@ -341,7 +343,7 @@ static int __init st7735s_init(void)
                 goto out;
         }
 
-        ret = st7735s_cdev_init(frame_buffer);
+        ret = st7735s_cdev_init(st7735s_functions, (char*)frame_buffer, sizeof(frame_buffer));
         if (ret) {
                 goto out;
         }

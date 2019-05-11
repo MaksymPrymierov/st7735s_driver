@@ -5,6 +5,8 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 
+#include "st7735s_types.h"
+
 #define DEVICE_NAME "st7735s"
 
 static int major = 0;
@@ -12,12 +14,79 @@ static int minor = 0;
 static int count = 1;
 
 static struct cdev *cdev;
-//size_t size_octal_buffer;
+size_t size_buffer;
 
-static char *octal_buffer;
+static char *buffer;
+
+static struct st7735s_device_functions device_functions;
+
+static ssize_t st7735s_cdev_open(struct inode *inode, struct file *filp)
+{
+        return 0;
+}
+
+static ssize_t st7735s_cdev_release(struct inode *inode, struct file *filp)
+{
+        return 0;
+}
+
+static ssize_t st7735s_cdev_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+        ssize_t ret;
+
+        int remain = size_buffer - (int) (*f_pos);
+        if (count > remain) {
+                count = remain;
+        }
+
+        if (raw_copy_to_user(buf, buffer + *f_pos, count)) {
+                ret = -EFAULT;
+                goto out;
+        }
+
+        *f_pos += count;
+        
+        return count;
+
+out:
+        pr_err("st7735s: character dev read error\n");
+        return ret;
+}
+
+static ssize_t st7735s_cdev_write(struct file *filp, const char __user *buf,
+                                  size_t count, loff_t *f_pos)
+{
+        ssize_t ret;
+
+        int remain = size_buffer - (int) (*f_pos);
+
+        if (count > remain)
+        {
+                ret = -EIO;
+                goto out;
+        }
+
+        if (raw_copy_from_user(buffer + *f_pos, buf, count)) {
+                ret = -EFAULT;
+                goto out;
+        }
+        *f_pos += count;
+
+        device_functions.update_screen();
+
+        return count;
+
+out:
+        pr_err("st7735s: character dev write error\n");
+        return ret;
+}
 
 static struct file_operations fops = {
         .owner = THIS_MODULE,
+        .open = st7735s_cdev_open,
+        .release = st7735s_cdev_release,
+        .read = st7735s_cdev_read,
+        .write = st7735s_cdev_write,
 };
 
 void st7735s_cdev_remove(void)
@@ -28,8 +97,8 @@ void st7735s_cdev_remove(void)
                 cdev = NULL;
         }
 
-        if (octal_buffer) {
-                octal_buffer = NULL;
+        if (buffer) {
+                buffer = NULL;
         }
 
         unregister_chrdev_region(devno, count);
@@ -37,11 +106,13 @@ void st7735s_cdev_remove(void)
         pr_info("st7735s: character device removed\n");
 }
 
-int st7735s_cdev_init(u16 *hex_buffer) {
+int st7735s_cdev_init(struct st7735s_device_functions st7735s_functions, char *char_buffer, size_t size) {
         int ret;
         dev_t dev = 0;
+        device_functions = st7735s_functions;
 
-  //      size_octal_buffer = size_hex_buffer * 2;
+        size_buffer = size;
+        printk("size buffer %d\n", size_buffer);
 
         ret = alloc_chrdev_region(&dev, minor, count, DEVICE_NAME);
         major = MAJOR(dev);
@@ -66,9 +137,9 @@ int st7735s_cdev_init(u16 *hex_buffer) {
                 pr_err("st7735s: cdev_add error\n");
                 goto out;
         }
-        pr_info("st7735s: character device created major %d minor %d\n", minor, major);
+        pr_info("st7735s: character device created major %d minor %d\n", major, minor);
 
-        octal_buffer = (u8*)hex_buffer;
+        buffer = char_buffer;
 
         return 0;
 
