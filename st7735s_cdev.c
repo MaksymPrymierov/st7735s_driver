@@ -5,9 +5,8 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 
+#include "st7735s_sysfs.c"
 #include "st7735s_types.h"
-
-#define DEVICE_NAME "st7735s"
 
 static int major = 0;
 static int minor = 0;
@@ -92,6 +91,9 @@ static struct file_operations fops = {
 void st7735s_cdev_remove(void)
 {
         dev_t devno = MKDEV(major, minor);
+
+        st7735s_sysfs_remove();
+
         if (cdev) {
                 cdev_del(cdev);
                 cdev = NULL;
@@ -114,7 +116,7 @@ int st7735s_cdev_init(struct st7735s_device_functions st7735s_functions, char *c
         size_buffer = size;
         printk("size buffer %d\n", size_buffer);
 
-        ret = alloc_chrdev_region(&dev, minor, count, DEVICE_NAME);
+        ret = alloc_chrdev_region(&dev, minor, count, ST7735S_DEVICE_NAME);
         major = MAJOR(dev);
 
         if (ret < 0) {
@@ -140,6 +142,11 @@ int st7735s_cdev_init(struct st7735s_device_functions st7735s_functions, char *c
         pr_info("st7735s: character device created major %d minor %d\n", major, minor);
 
         buffer = char_buffer;
+
+        ret = st7735s_sysfs_init(st7735s_functions, dev);
+        if (ret) {
+                goto out;
+        }
 
         return 0;
 
