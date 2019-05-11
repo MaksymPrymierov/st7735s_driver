@@ -7,60 +7,12 @@
 
 #include <linux/device.h>
 
-#include "st7735s_sysfs.c"
 #include "st7735s_cdev.c"
 #include "st7735s_types.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
 MODULE_DESCRIPTION("Driver for st7735 display");
-
-#define ST7735S_MADCTL_RGB 0x00
-#define ST7735S_MADCTL_BGR 0x08
-#define ST7735S_MADCTL_MY  0x80
-#define ST7735S_MADCTL_MX  0x40
-//#define ST7735S_ROTATION (ST7735S_MADCTL_MX | ST7735S_MADCTL_MY | ST7735S_MADCTL_BGR)
-//#define ST7735S_XSTART 2
-//#define ST7735S_YSTART 3
-
-#define ST7735S_IS_160X128 1
-#define ST7735S_WIDTH  128
-#define ST7735S_HEIGHT 160
-#define ST7735S_XSTART 0
-#define ST7735S_YSTART 0
-#define ST7735S_ROTATION (ST7735S_MADCTL_MX | ST7735S_MADCTL_MY)
-
-// Pins
-#define ST7735S_PIN_CS 67
-#define ST7735S_PIN_RESET 2
-#define ST7735S_PIN_DC 71
-
-// Commands
-#define ST7735S_SWRESET 0x01 // SoftWare Reset
-#define ST7735S_SLPOUT 0x11 // Sleep Out
-#define ST7735S_FRMCTR1 0xB1 // Norman Mode (Full colors)
-#define ST7735S_FRMCTR2 0xB2 // In idle Mode (8 colors)
-#define ST7735S_FRMCTR3 0xB3 // In partial Mode + Full Colors
-#define ST7735S_INVCTR 0xB4 // Display inversion control
-#define ST7735S_PWCTR1 0xC0 // Power control setting
-#define ST7735S_PWCTR2 0xC1 // Power control setting
-#define ST7735S_PWCTR3 0xC2 // In normal mode (Full colors)
-#define ST7735S_PWCTR4 0xC3 // In idle mode (8 colors)
-#define ST7735S_PWCTR5 0xC4 // In partial mode + Full colors
-#define ST7735S_VMCTR1 0xC5 // VCOM control 1
-#define ST7735S_INVOFF 0x20 // Display inversion off
-#define ST7735S_MADCTL 0x36 // Memory data access control
-#define ST7735S_COLMOD 0x3A // Interface pixel format
-#define ST7735S_CASET 0x2A
-#define ST7735S_RASET 0x2B
-#define ST7735S_GMCTRP1 0xE0
-#define ST7735S_GMCTRN1 0xE1
-#define ST7735S_NORON 0x13
-#define ST7735S_DISPON 0x29
-#define ST7735S_DISPOFF 0x28
-#define ST7735S_RAMWR 0x2C
-
-#define DELAY 0x80
 
 static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
@@ -255,8 +207,6 @@ static void __exit st7735s_exit(void)
 {
         st7735s_cdev_remove();
 
-        st7735s_sysfs_remove();
-
         gpio_free(ST7735S_PIN_DC);
 
         if (st7735s_spi_device) {
@@ -336,11 +286,6 @@ static int __init st7735s_init(void)
         st7735s_fill_rectangle(20 + 40, 55 + 60, 20, 60, 0x3333);
         st7735s_fill_rectangle(79, 80, 50, 60, 0x4444);
         st7735s_fill_rectangle(0, 0, 50, 60, 0x5555);
-	
-	ret = st7735s_sysfs_init(st7735s_functions);
-        if (ret) {
-                goto out;
-        }
 
         ret = st7735s_cdev_init(st7735s_functions, (char*)frame_buffer, sizeof(frame_buffer));
         if (ret) {

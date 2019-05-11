@@ -31,6 +31,8 @@ static ssize_t fill_screen_store(struct class *class, struct class_attribute *at
         return size;
 }
 
+static dev_t st7735s_devt;
+static struct device *char_dev_class;
 static struct class *attr_class;
 static struct class_attribute class_attr_draw_rect = __ATTR_WO(draw_rect);
 static struct class_attribute class_attr_fill_screen = __ATTR_WO(fill_screen);
@@ -47,18 +49,22 @@ void st7735s_sysfs_remove(void)
         }
 }
 
-int st7735s_sysfs_init(struct st7735s_device_functions functions)
+int st7735s_sysfs_init(struct st7735s_device_functions functions, dev_t devt)
 {
         int ret;
         device_functions = functions;
+        st7735s_devt = devt;
 
-        attr_class = class_create(THIS_MODULE, "st7735s");
+        attr_class = class_create(THIS_MODULE, ST7735S_DEVICE_NAME);
         if (IS_ERR(attr_class)) {
                 ret = PTR_ERR(attr_class);
                 pr_err("st7735s: failed to create sysfs class: %d\n", ret);
                 goto out;
         }
         pr_info("st7735s: sysfs class created\n");
+
+        char_dev_class = device_create(attr_class, NULL, st7735s_devt, NULL, ST7735S_DEVICE_NAME);
+        pr_info("st7735s: device created\n");
 
         class_attr_fill_screen.attr.mode = 0222;
         ret = class_create_file(attr_class, &class_attr_fill_screen);
