@@ -13,7 +13,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
 MODULE_DESCRIPTION("Driver for st7735 display");
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");
 
 static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
