@@ -10,6 +10,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
 MODULE_DESCRIPTION("Driver for st7735 display");
+MODULE_VERSION("0.1");
 
 #define ST7735S_MADCTL_RGB 0x00
 #define ST7735S_MADCTL_BGR 0x08
