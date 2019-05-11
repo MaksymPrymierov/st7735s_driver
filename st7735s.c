@@ -6,7 +6,9 @@
 #include <linux/gpio.h>
 
 #include <linux/device.h>
+
 #include "st7735s_sysfs.c"
+#include "st7735s_cdev.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Primerov <primerovmax@gmail.com");
@@ -250,6 +252,8 @@ void st7735s_fill_screen(u16 color)
 
 static void __exit st7735s_exit(void)
 {
+        st7735s_cdev_remove();
+
         st7735s_sysfs_remove();
 
         gpio_free(ST7735S_PIN_DC);
@@ -326,12 +330,17 @@ static int __init st7735s_init(void)
         st7735s_fill_screen(0x0000);
 
         st7735s_fill_rectangle(20, 130, 50, 20, 0x1111);
-        st7735s_fill_rectangle(20, 55+60, 20, 60, 0x2222);
-        st7735s_fill_rectangle(20+40, 55+60, 20, 60, 0x3333);
+        st7735s_fill_rectangle(20, 55 + 60, 20, 60, 0x2222);
+        st7735s_fill_rectangle(20 + 40, 55 + 60, 20, 60, 0x3333);
         st7735s_fill_rectangle(79, 80, 50, 60, 0x4444);
         st7735s_fill_rectangle(0, 0, 50, 60, 0x5555);
 	
 	ret = st7735s_sysfs_init(st7735s_functions);
+        if (ret) {
+                goto out;
+        }
+
+        ret = st7735s_cdev_init(frame_buffer);
         if (ret) {
                 goto out;
         }
