@@ -2,14 +2,9 @@
 #include <linux/module.h>
 
 #include <linux/device.h>
+#include "st7735s_types.h"
 
-struct device_functions
-{
-        void (*draw_rect) (u16, u16, u16, u16, u16);
-        void (*fill_screen) (u16);
-};
-
-static struct device_functions device_functions;
+static struct st7735s_device_functions device_functions;
 
 static ssize_t draw_rect_store(struct class *class, struct class_attribute *attr, const char *buf, size_t size)
 {
@@ -52,7 +47,7 @@ void st7735s_sysfs_remove(void)
         }
 }
 
-int st7735s_sysfs_init(struct device_functions functions)
+int st7735s_sysfs_init(struct st7735s_device_functions functions)
 {
         int ret;
         device_functions = functions;
