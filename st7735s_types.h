@@ -50,6 +50,8 @@
 
 #define ST7735S_DEVICE_NAME "st7735s"
 
+#define FRAMERATE 30
+
 struct st7735s_device_functions
 {
         void (*draw_rect) (u16, u16, u16, u16, u16);

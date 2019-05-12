@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
@@ -17,6 +18,7 @@ MODULE_VERSION("0.2");
 
 static u16 frame_buffer[ST7735S_WIDTH * ST7735S_HEIGHT];
 static struct spi_device *st7735s_spi_device;
+static struct task_struct *update_thread;
 
 static const u8 init_cmds1[] = { 
         // Init for st7735s, part 1 (red or green tab)
@@ -154,7 +156,20 @@ static void st7735s_set_address_window(u8 x0, u8 y0, u8 x1, u8 y1)
 
 inline void st7735s_update_screen(void)
 {
-        st7735s_write_data((u8*)frame_buffer, sizeof(u16) * ST7735S_WIDTH * ST7735S_HEIGHT);
+	st7735s_write_data((u8*)frame_buffer, sizeof(u16) * ST7735S_WIDTH * ST7735S_HEIGHT);
+
+}
+	
+int screen_updater(void *arg);
+	
+int screen_updater(void *arg)
+{
+	while(!kthread_should_stop()) {
+		st7735s_update_screen();
+		mdelay(1/FRAMERATE);
+	}
+
+	return 0;
 }
 
 void st7735s_draw_pixel(u16 x, u16 y, u16 color)
@@ -164,7 +179,6 @@ void st7735s_draw_pixel(u16 x, u16 y, u16 color)
         }
         
         frame_buffer[x + ST7735S_WIDTH * y] = color;
-        st7735s_update_screen();
 
         out:
                 return;
@@ -193,7 +207,6 @@ void st7735s_fill_rectangle(u16 x, u16 y, u16 w, u16 h, u16 color)
                 }
         }
 
-        st7735s_update_screen();
 
 out:
         return;
@@ -206,6 +219,14 @@ void st7735s_fill_screen(u16 color)
 
 static void __exit st7735s_exit(void)
 {
+		int ret;
+		
+		if(update_thread) {
+			ret = kthread_stop(update_thread);
+		}
+		if(!ret)
+			printk(KERN_INFO "Thread stopped");
+		
         st7735s_cdev_remove();
 
         gpio_free(ST7735S_PIN_DC);
@@ -292,7 +313,18 @@ static int __init st7735s_init(void)
         if (ret) {
                 goto out;
         }
-
+		
+		update_thread = kthread_create(screen_updater, NULL, "update_thread");
+		if (update_thread) {
+			pr_info("st7735s: thread created succesfully\n");
+		}
+		else {
+			pr_info("st7735s: error creating thread\n");
+			goto out;
+		}
+		wake_up_process(update_thread);
+		
+		
         pr_info("st7735s: module loaded\n");
 
         return 0;

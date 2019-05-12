@@ -71,8 +71,6 @@ static ssize_t st7735s_cdev_write(struct file *filp, const char __user *buf,
         }
         *f_pos += count;
 
-        device_functions.update_screen();
-
         return count;
 
 out:
