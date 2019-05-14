@@ -1,4 +1,4 @@
-# St77735S driver
+# St7735S driver
 
 ST7735s Display driver for orange pi one
 
